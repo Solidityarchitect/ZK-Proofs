@@ -1,7 +1,7 @@
 pragma circom 2.0.0;
 
-include "./mux3.circom";
-include "./montgomery.circom";
+include "./utils/montgomery.circom";
+include "./utils/mux3.circom";
 
 template Pedersen(n) {
     var P1[50][8][2] = [
@@ -5129,4 +5129,62 @@ template Pedersen(n) {
     var p2Idx;
     var p3Idx;
 
+    component pointSelector[nWindows];
+
+    for(var i = 0; i < nWindows; i++){
+        b0 = in[i * 4];
+        b1 = in[i * 4 + 1];
+        b2 = in[i * 4 + 2];
+        b3 = in[i * 4 + 3];
+
+        p1Idx = i \ nWindowsPerSegment;
+        p2Idx = i - (i \ nWindowsPerSegment) * nWindowsPerSegment;
+
+        pointSelector[i] = MultiMux3(2);
+
+        pointSelector[i].s[0] <== b0;
+        pointSelector[i].s[1] <== b1;
+        pointSelector[i].s[2] <== b2;
+
+        pointSelector[i].c[0][0] <==  BASIS[p1Idx][p2Idx][0][0];
+        pointSelector[i].c[1][0] <==  BASIS[p1Idx][p2Idx][0][1];
+        pointSelector[i].c[0][1] <==  BASIS[p1Idx][p2Idx][1][0];
+        pointSelector[i].c[1][1] <==  BASIS[p1Idx][p2Idx][1][1];
+        pointSelector[i].c[0][2] <==  BASIS[p1Idx][p2Idx][2][0];
+        pointSelector[i].c[1][2] <==  BASIS[p1Idx][p2Idx][2][1];
+        pointSelector[i].c[0][3] <==  BASIS[p1Idx][p2Idx][3][0];
+        pointSelector[i].c[1][3] <==  BASIS[p1Idx][p2Idx][3][1];
+        pointSelector[i].c[0][4] <==  BASIS[p1Idx][p2Idx][4][0];
+        pointSelector[i].c[1][4] <==  BASIS[p1Idx][p2Idx][4][1];
+        pointSelector[i].c[0][5] <==  BASIS[p1Idx][p2Idx][5][0];
+        pointSelector[i].c[1][5] <==  BASIS[p1Idx][p2Idx][5][1];
+        pointSelector[i].c[0][6] <==  BASIS[p1Idx][p2Idx][6][0];
+        pointSelector[i].c[1][6] <==  BASIS[p1Idx][p2Idx][6][1];
+        pointSelector[i].c[0][7] <==  BASIS[p1Idx][p2Idx][7][0];
+        pointSelector[i].c[1][7] <==  BASIS[p1Idx][p2Idx][7][1];
+
+        pts[i][0] <== pointSelector[i].out[0];
+        pts[i][1] <== pointSelector[i].out[1] * 2 * b3 - pointSelector[i].out[1];
+    }
+
+    component adders[nWindows - 1];
+    for(var k = 0; k < nWindows - 1; k++){
+        adders[k] = MontgomeryAdd();
+    }
+
+    adders[0].in1[0] <== pts[0][0];
+    adders[0].in1[1] <== pts[0][1];
+    adders[0].in2[0] <== pts[1][0];
+    adders[0].in2[1] <== pts[1][1];
+
+    for(var k = 1; k < nWindows - 1; k++){
+        adders[k].in1[0] <== adders[k - 1].out[0];
+        adders[k].in1[1] <== adders[k - 1].out[1];
+        adders[k].in2[0] <== pts[k + 1][0];
+        adders[k].in2[1] <== pts[k + 1][1];
+    }
+
+    o <== adders[nWindows - 2].out[0];
 }
+
+component main = Pedersen(8);
