@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { utils } from "../utils/$u"
+import $u from "../utils/$u"
 import { ethers } from "ethers"
 
 const Interface = () => {
@@ -32,6 +32,10 @@ const Interface = () => {
         }
     }
 
+    const depositEther = async () => {
+        // generate secret, nullifier
+    }
+
     return (
         <div>
             {!!account ? (
@@ -43,6 +47,20 @@ const Interface = () => {
             ) : (
                 <div>
                     <button onClick={connectMetamask}>Connect Metamask</button>
+                </div>
+            )}
+
+            <div>
+                <hr />
+            </div>
+
+            {!!account ? (
+                <div>
+                    <button onClick={depositEther}>Deposit 1 ETH</button>
+                </div>
+            ) : (
+                <div>
+                    <p>You need to connect Metamask to use this section.</p>
                 </div>
             )}
         </div>
