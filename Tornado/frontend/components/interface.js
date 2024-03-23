@@ -4,10 +4,14 @@ import { ethers } from "ethers"
 
 const wc = require("../circuit/witness_calculator")
 
-const tornadoAddress = ""
+const tornadoAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+const tornadoJSON = require("../json/Tornado.json")
+const tornadoABI = tornadoJSON.abi
+const tornadoInterface = new ethers.utils.Interface(tornadoABI)
 
 const Interface = () => {
     const [account, updateAccount] = useState(null)
+    const [proofElements, updateProofElements] = useState(null)
 
     const connectMetamask = async () => {
         try {
@@ -61,10 +65,39 @@ const Interface = () => {
             to: tornadoAddress,
             from: account.address,
             value: value,
-            data: "",
+            data: tornadoInterface.encodeFunctionData("deposit", [commitment]), // calldata
         }
-        console.log(commitment)
-        console.log(nullifierHash)
+        console.log("commitment is:", commitment)
+        console.log("nullifierHash is", nullifierHash)
+
+        try {
+            const txHash = await window.ethereum.request({
+                method: "eth_sendTransaction",
+                params: [tx],
+            })
+            const receipt = await window.ethereum.request({
+                method: "eth_getTransactionReceipt",
+                params: [txHash],
+            })
+            const log = receipt.logs[0]
+
+            const decodedData = tornadoInterface.decodeEventLog("Deposit", log.data, log.topics)
+            console.log("decodeData is:", decodedData)
+
+            const proofElements = {
+                root: $u.BNToDecimal(decodedData.root),
+                nullifierHash: `${nullifierHash}`,
+                secret: secret,
+                nullifier: nullifier,
+                commitment: `${commitment}`,
+                hashPairings: decodedData.hashPairings.map((n) => $u.BNToDecimal(n)),
+                hashDirections: decodedData.hashDirections,
+            }
+
+            updateProofElements(btoa(JSON.stringify(proofElements)))
+        } catch (e) {
+            console.log(e)
+        }
     }
 
     return (
@@ -87,7 +120,13 @@ const Interface = () => {
 
             {!!account ? (
                 <div>
-                    <button onClick={depositEther}>Deposit 1 ETH</button>
+                    {!!proofElements ? (
+                        <div>
+                            <p>{proofElements}</p>
+                        </div>
+                    ) : (
+                        <button onClick={depositEther}>Deposit 1 ETH</button>
+                    )}
                 </div>
             ) : (
                 <div>

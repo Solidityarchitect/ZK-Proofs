@@ -38,8 +38,8 @@ contract Tornado is ReentrancyGuard {
 
     event Deposit(
         uint256 indexed root,
-        uint256[10] indexed hashPairings,
-        uint8[10] indexed pairDirection
+        uint256[10] hashPairings,
+        uint8[10] pairDirection
     );
 
     constructor(address _hasher) {

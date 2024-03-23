@@ -27,6 +27,9 @@ const utils = {
         }
         return prePadding + r
     },
+    BNToDecimal: (bn) => {
+        return ethers.BigNumber.from(bn).toString()
+    },
 }
 
 export default utils
