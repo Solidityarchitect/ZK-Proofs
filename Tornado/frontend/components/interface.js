@@ -12,6 +12,7 @@ const tornadoInterface = new ethers.utils.Interface(tornadoABI)
 const Interface = () => {
     const [account, updateAccount] = useState(null)
     const [proofElements, updateProofElements] = useState(null)
+    const [proofStringEl, updateProofStringEl] = useState(null)
 
     const connectMetamask = async () => {
         try {
@@ -100,6 +101,12 @@ const Interface = () => {
         }
     }
 
+    const copyProof = async () => {
+        if (!!proofStringEl) {
+            navigator.clipboard.writeText(proofStringEl.innerHTML)
+        }
+    }
+
     return (
         <div>
             {!!account ? (
@@ -122,7 +129,21 @@ const Interface = () => {
                 <div>
                     {!!proofElements ? (
                         <div>
-                            <p>{proofElements}</p>
+                            <p>
+                                <strong>Proof of Deposit:</strong>
+                            </p>
+                            <div style={{ maxWidth: "100vw", overflowWrap: "break-word" }}>
+                                <span
+                                    ref={(proofStringEl) => {
+                                        updateProofStringEl(proofStringEl)
+                                    }}
+                                >
+                                    {proofElements}
+                                </span>
+                            </div>
+                            {!!proofElements && (
+                                <button onClick={copyProof}>Copy Proof String</button>
+                            )}
                         </div>
                     ) : (
                         <button onClick={depositEther}>Deposit 1 ETH</button>
