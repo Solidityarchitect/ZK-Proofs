@@ -4,8 +4,18 @@ pragma solidity 0.8.17;
 import {Hasher} from "./MiMCSponge.sol";
 import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 
+interface IVerifier {
+    function verifyProof(
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[3] calldata _pubSignals
+    ) external;
+}
+
 contract Tornado is ReentrancyGuard {
     Hasher public hasher;
+    address public verifier;
 
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
@@ -42,9 +52,9 @@ contract Tornado is ReentrancyGuard {
         uint8[10] pairDirection
     );
 
-    constructor(address _hasher) {
+    constructor(address _hasher, address _verifier) {
         hasher = Hasher(_hasher);
-        // verifier = Verifier(_verifier);
+        verifier = _verifier;
     }
 
     function deposit(uint256 _commitment) external payable nonReentrant {
@@ -97,5 +107,27 @@ contract Tornado is ReentrancyGuard {
         emit Deposit(newRoot, hashPairings, hashDirections);
     }
 
-    // function withdraw() external {}
+    function withdraw(
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[3] calldata _pubSignals
+    ) external payable nonReentrant {
+        uint256 _root = _pubSignals[0];
+        uint256 _nullifierHash = _pubSignals[1];
+
+        require(!nullifierHashs[_nullifierHash], "already-spent");
+        require(roots[_root], "not root");
+
+        uint256 _addr = uint256(uint160(msg.sender));
+
+        (bool verifyOK, ) = verifier.call(
+            abi.encodeCall(
+                IVerifier.verifyProof,
+                (_pA, _pB, _pC, [_root, _nullifierHash, _addr])
+            )
+        );
+
+        require(verifyOK, "invalid proof");
+    }
 }
