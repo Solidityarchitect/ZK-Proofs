@@ -17,6 +17,7 @@ const Interface = () => {
 
     // interface states
     const [section, updateSection] = useState("deposit")
+    const [displayCopiedMessage, updateDisplayCopiedMessage] = useState(false)
 
     const connectMetamask = async () => {
         try {
@@ -97,6 +98,7 @@ const Interface = () => {
 
     const copyProof = async () => {
         if (!!proofStringEl) {
+            flashCopiedMessage()
             navigator.clipboard.writeText(proofStringEl.innerHTML)
         }
     }
@@ -179,6 +181,13 @@ const Interface = () => {
         }
     }
 
+    const flashCopiedMessage = async () => {
+        updateDisplayCopiedMessage(true)
+        setTimeout(() => {
+            updateDisplayCopiedMessage(false)
+        }, 1000)
+    }
+
     return (
         <div>
             <nav className="navbar navbar-nav fixed-top bg-dark text-light">
@@ -219,10 +228,10 @@ const Interface = () => {
 
             <div style={{ height: "60px" }}></div>
 
-            <div className="container">
+            <div className="container" style={{ marginTop: 60 }}>
                 <div className="card mx-auto" style={{ maxWidth: 450 }}>
                     <div className="card-body">
-                        <div className="btn-group">
+                        <div className="btn-group" style={{ marginBottom: 20 }}>
                             {section == "Deposit" ? (
                                 <button className="btn btn-primary">Deposit</button>
                             ) : (
@@ -251,16 +260,56 @@ const Interface = () => {
 
                         {section == "Deposit" && !!account && (
                             <div>
-                                <p>Deposit</p>
+                                {!!proofElements || true ? (
+                                    <div>
+                                        <div className="alert alert-success">
+                                            <span>
+                                                <strong>Proof of Deposit:</strong>
+                                            </span>
+                                            <div className="p-1" style={{ lineHeight: "12px" }}>
+                                                <span
+                                                    style={{ fontSize: 10 }}
+                                                    ref={(proofStringEl) => {
+                                                        updateProofStringEl(proofStringEl)
+                                                    }}
+                                                >
+                                                    {proofElements}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <button className="btn btn-success" onClick={copyProof}>
+                                            <span className="small">Copy Proof String</span>
+                                        </button>
+                                        {!!displayCopiedMessage && (
+                                            <span className="small" style={{ color: "green" }}>
+                                                <strong>Copied!</strong>
+                                            </span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <button className="btn btn-success" onClick={depositEther}>
+                                        <span className="small">Deposit 1 ETH</span>
+                                    </button>
+                                )}
                             </div>
                         )}
 
                         {section != "Deposit" && !!account && (
                             <div>
-                                <p>Withdraw</p>
+                                <div>
+                                    <textarea
+                                        className="form-control"
+                                        style={{ resize: "none" }}
+                                        ref={(ta) => {
+                                            updateTextArea(ta)
+                                        }}
+                                    ></textarea>
+                                </div>
+                                <button className="btn btn-primary" onClick={withdraw}>
+                                    <span className="small">withdraw 1 ETH</span>
+                                </button>
                             </div>
                         )}
-
                         {!account && (
                             <div>
                                 <p>Please connect your wallet to use the sctions.</p>
@@ -269,57 +318,6 @@ const Interface = () => {
                     </div>
                 </div>
             </div>
-
-            {!!account ? (
-                <div>
-                    {!!proofElements ? (
-                        <div>
-                            <p>
-                                <strong>Proof of Deposit:</strong>
-                            </p>
-                            <div style={{ maxWidth: "100vw", overflowWrap: "break-word" }}>
-                                <span
-                                    ref={(proofStringEl) => {
-                                        updateProofStringEl(proofStringEl)
-                                    }}
-                                >
-                                    {proofElements}
-                                </span>
-                            </div>
-                            {!!proofElements && (
-                                <button onClick={copyProof}>Copy Proof String</button>
-                            )}
-                        </div>
-                    ) : (
-                        <button onClick={depositEther}>Deposit 1 ETH</button>
-                    )}
-                </div>
-            ) : (
-                <div>
-                    <p>You need to connect Metamask to use this section.</p>
-                </div>
-            )}
-
-            <div>
-                <hr />
-            </div>
-
-            {!!account ? (
-                <div>
-                    <div>
-                        <textarea
-                            ref={(ta) => {
-                                updateTextArea(ta)
-                            }}
-                        ></textarea>
-                    </div>
-                    <button onClick={withdraw}>withdraw 1 ETH</button>
-                </div>
-            ) : (
-                <div>
-                    <p>You need to connect Metamask to use this section.</p>
-                </div>
-            )}
         </div>
     )
 }
