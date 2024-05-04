@@ -4,7 +4,7 @@ import { ethers } from "ethers"
 
 const wc = require("../circuit/witness_calculator")
 
-const tornadoAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+const tornadoAddress = "0x0165878A594ca255338adfa4d48449f69242Eb8F"
 const tornadoJSON = require("../json/Tornado.json")
 const tornadoABI = tornadoJSON.abi
 const tornadoInterface = new ethers.utils.Interface(tornadoABI)
@@ -13,6 +13,10 @@ const Interface = () => {
     const [account, updateAccount] = useState(null)
     const [proofElements, updateProofElements] = useState(null)
     const [proofStringEl, updateProofStringEl] = useState(null)
+    const [textArea, updateTextArea] = useState(null)
+
+    // interface states
+    const [section, updateSection] = useState("deposit")
 
     const connectMetamask = async () => {
         try {
@@ -76,23 +80,13 @@ const Interface = () => {
                 method: "eth_sendTransaction",
                 params: [tx],
             })
-            const receipt = await window.ethereum.request({
-                method: "eth_getTransactionReceipt",
-                params: [txHash],
-            })
-            const log = receipt.logs[0]
-
-            const decodedData = tornadoInterface.decodeEventLog("Deposit", log.data, log.topics)
-            console.log("decodeData is:", decodedData)
 
             const proofElements = {
-                root: $u.BNToDecimal(decodedData.root),
                 nullifierHash: `${nullifierHash}`,
                 secret: secret,
                 nullifier: nullifier,
                 commitment: `${commitment}`,
-                hashPairings: decodedData.hashPairings.map((n) => $u.BNToDecimal(n)),
-                hashDirections: decodedData.hashDirections,
+                txHash: txHash,
             }
 
             updateProofElements(btoa(JSON.stringify(proofElements)))
@@ -107,22 +101,173 @@ const Interface = () => {
         }
     }
 
+    const withdraw = async () => {
+        if (!textArea || !textArea.value) {
+            alert("Please input the proof of deposit string.")
+        }
+
+        try {
+            const proofString = textArea.value
+            const proofElements = JSON.parse(atob(proofString))
+            console.log(proofElements.txHash)
+
+            receipt = await window.ethereum.request({
+                method: "eth_getTransactionReceipt",
+                params: [proofElements.txHash],
+            })
+            if (!receipt) {
+                throw "empty-receipt"
+            }
+
+            const log = receipt.logs[0]
+            const decodedData = tornadoInterface.decodeEventLog("Deposit", log.data, log.topics)
+
+            const SnarkJS = window["snarkjs"]
+
+            const proofInput = {
+                root: $u.BNToDecimal(decodedData.root),
+                nullifierHash: proofElements.nullifierHash,
+                recipient: $u.BNToDecimal(account.address),
+                secret: $u.BN256ToBin(proofElements.secret).split(""),
+                nullifier: $u.BN256ToBin(proofElements.nullifier).split(""),
+                hashPairings: decodedData.hashPairings.map((n) => $u.BNToDecimal(n)),
+                hashDirections: decodedData.pairDirection,
+            }
+
+            const { proof, publicSignals } = await SnarkJS.groth16.fullProve(
+                proofInput,
+                "/withdraw.wasm",
+                "/setup_final.zkey",
+            )
+
+            const callInputs = [
+                proof.pi_a.slice(0, 2).map($u.BN256ToHex),
+                proof.pi_b.slice(0, 2).map((row) => $u.reverseCoordinate(row.map($u.BN256ToHex))),
+                proof.pi_c.slice(0, 2).map($u.BN256ToHex),
+                publicSignals.slice(0, 2).map($u.BN256ToHex),
+            ]
+
+            const callData = tornadoInterface.encodeFunctionData("withdraw", callInputs)
+            const tx = {
+                to: tornadoAddress,
+                from: account.address,
+                data: callData, // calldata}
+            }
+
+            const txHash = await window.ethereum.request({
+                method: "eth_sendTransaction",
+                params: [tx],
+            })
+
+            var receipt
+            while (!receipt) {
+                receipt = await window.ethereum.request({
+                    method: "eth_getTransactionReceipt",
+                    params: [txHash],
+                })
+                await new Promise((resolve, reject) => {
+                    setTimeout(resolve, 1000)
+                })
+            }
+
+            console.log(receipt)
+
+            console.log(proof)
+            console.log(publicSignals)
+        } catch (e) {
+            console.log(e)
+        }
+    }
+
     return (
         <div>
-            {!!account ? (
-                <div>
-                    <p>chainId: {account.chainId}</p>
-                    <p>Wallet Address: {account.address}</p>
-                    <p>Balance: {account.balance}</p>
-                </div>
-            ) : (
-                <div>
-                    <button onClick={connectMetamask}>Connect Metamask</button>
-                </div>
-            )}
+            <nav className="navbar navbar-nav fixed-top bg-dark text-light">
+                {!!account ? (
+                    <div className="container">
+                        <div className="navbar-left">
+                            <span>
+                                <strong>chainId: </strong>
+                            </span>
+                            <br />
+                            <span>{account.chainId}</span>
+                        </div>
 
-            <div>
-                <hr />
+                        <div className="navbar-right">
+                            <span>
+                                <strong>{account.address.slice(0, 12) + "..."}</strong>
+                            </span>
+                            <br />
+                            <span className="small">
+                                {account.balance.slice(0, 10) +
+                                    (account.balance.length > 10 ? "..." : "")}
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="container">
+                        <div className="navbar-left">
+                            <h5>NFTA-Tornado</h5>
+                        </div>
+                        <div className="navbar-right">
+                            <button className="btn btn-primary" onClick={connectMetamask}>
+                                Connect Metamask
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </nav>
+
+            <div style={{ height: "60px" }}></div>
+
+            <div className="container">
+                <div className="card mx-auto" style={{ maxWidth: 450 }}>
+                    <div className="card-body">
+                        <div className="btn-group">
+                            {section == "Deposit" ? (
+                                <button className="btn btn-primary">Deposit</button>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        updateSection("Deposit")
+                                    }}
+                                    className="btn btn-outline-primary"
+                                >
+                                    Deposit
+                                </button>
+                            )}
+                            {section == "Deposit" ? (
+                                <button
+                                    onClick={() => {
+                                        updateSection("Withdraw")
+                                    }}
+                                    className="btn btn-outline-primary"
+                                >
+                                    Withdraw
+                                </button>
+                            ) : (
+                                <button className="btn btn-primary">Withdraw</button>
+                            )}
+                        </div>
+
+                        {section == "Deposit" && !!account && (
+                            <div>
+                                <p>Deposit</p>
+                            </div>
+                        )}
+
+                        {section != "Deposit" && !!account && (
+                            <div>
+                                <p>Withdraw</p>
+                            </div>
+                        )}
+
+                        {!account && (
+                            <div>
+                                <p>Please connect your wallet to use the sctions.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {!!account ? (
@@ -148,6 +293,27 @@ const Interface = () => {
                     ) : (
                         <button onClick={depositEther}>Deposit 1 ETH</button>
                     )}
+                </div>
+            ) : (
+                <div>
+                    <p>You need to connect Metamask to use this section.</p>
+                </div>
+            )}
+
+            <div>
+                <hr />
+            </div>
+
+            {!!account ? (
+                <div>
+                    <div>
+                        <textarea
+                            ref={(ta) => {
+                                updateTextArea(ta)
+                            }}
+                        ></textarea>
+                    </div>
+                    <button onClick={withdraw}>withdraw 1 ETH</button>
                 </div>
             ) : (
                 <div>

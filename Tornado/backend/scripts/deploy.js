@@ -7,9 +7,16 @@ async function main() {
   await hasher.deployed();
   console.log(hasher.address);
 
+  // deploy verifier
+  const Verifier = await hre.ethers.getContractFactory("Groth16Verifier");
+  const verifier = await Verifier.deploy();
+  await verifier.deployed();
+  console.log(verifier.address);
+  const verifierAddress = verifier.address;
+
   // deploy tornado
   const Tornado = await hre.ethers.getContractFactory("Tornado");
-  const tornado = await Tornado.deploy(hasher.address);
+  const tornado = await Tornado.deploy(hasher.address, verifierAddress);
   await tornado.deployed();
   console.log(tornado.address);
 }

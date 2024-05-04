@@ -51,6 +51,7 @@ contract Tornado is ReentrancyGuard {
         uint256[10] hashPairings,
         uint8[10] pairDirection
     );
+    event Withdrawal(address indexed user, uint256 indexed nullifierHash);
 
     constructor(address _hasher, address _verifier) {
         hasher = Hasher(_hasher);
@@ -111,7 +112,7 @@ contract Tornado is ReentrancyGuard {
         uint[2] calldata _pA,
         uint[2][2] calldata _pB,
         uint[2] calldata _pC,
-        uint[3] calldata _pubSignals
+        uint[2] calldata _pubSignals
     ) external payable nonReentrant {
         uint256 _root = _pubSignals[0];
         uint256 _nullifierHash = _pubSignals[1];
@@ -129,5 +130,13 @@ contract Tornado is ReentrancyGuard {
         );
 
         require(verifyOK, "invalid proof");
+
+        nullifierHashs[_nullifierHash] = true;
+        address payable target = payable(msg.sender);
+
+        (bool success, ) = target.call{value: DENOMINATION}("");
+        require(success, "transaction failed");
+
+        emit Withdrawal(msg.sender, _nullifierHash);
     }
 }
