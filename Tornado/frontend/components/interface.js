@@ -9,6 +9,8 @@ const tornadoJSON = require("../json/Tornado.json")
 const tornadoABI = tornadoJSON.abi
 const tornadoInterface = new ethers.utils.Interface(tornadoABI)
 
+const ButtonState = { Normal: 0, Loading: 1, Disabled: 2 }
+
 const Interface = () => {
     const [account, updateAccount] = useState(null)
     const [proofElements, updateProofElements] = useState(null)
@@ -18,9 +20,14 @@ const Interface = () => {
     // interface states
     const [section, updateSection] = useState("deposit")
     const [displayCopiedMessage, updateDisplayCopiedMessage] = useState(false)
+    const [withdrawalSuccessful, updateWithdrawalSuccessful] = useState(false)
+    const [metamaskButtonState, updateMetamaskButtonState] = useState(ButtonState.Normal)
+    const [depositButtonState, updateDepositButtonState] = useState()
+    const [withdrawButtonState, updateWithdrawButtonState] = useState()
 
     const connectMetamask = async () => {
         try {
+            updateMetamaskButtonState(ButtonState.Disabled)
             if (!window.ethereum) {
                 alert("Please install Metamask to use this app.")
                 throw "no-metamask"
@@ -44,9 +51,12 @@ const Interface = () => {
         } catch (e) {
             console.log(e)
         }
+
+        updateMetamaskButtonState(ButtonState.Normal)
     }
 
     const depositEther = async () => {
+        updateDepositButtonState(ButtonState.Disabled)
         // generate secret, nullifier
         const secret = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
         const nullifier = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
@@ -94,6 +104,7 @@ const Interface = () => {
         } catch (e) {
             console.log(e)
         }
+        updateDepositButtonState(ButtonState.Normal)
     }
 
     const copyProof = async () => {
@@ -104,6 +115,7 @@ const Interface = () => {
     }
 
     const withdraw = async () => {
+        updateWithdrawButtonState(ButtonState.Disabled)
         if (!textArea || !textArea.value) {
             alert("Please input the proof of deposit string.")
         }
@@ -176,9 +188,14 @@ const Interface = () => {
 
             console.log(proof)
             console.log(publicSignals)
+
+            if (!!receipt) {
+                updateWithdrawalSuccessful(true)
+            }
         } catch (e) {
             console.log(e)
         }
+        updateWithdrawButtonState(ButtonState.Normal)
     }
 
     const flashCopiedMessage = async () => {
@@ -218,7 +235,11 @@ const Interface = () => {
                             <h5>NFTA-Tornado</h5>
                         </div>
                         <div className="navbar-right">
-                            <button className="btn btn-primary" onClick={connectMetamask}>
+                            <button
+                                className="btn btn-primary"
+                                onClick={connectMetamask}
+                                disabled={metamaskButtonState == ButtonState.Disabled}
+                            >
                                 Connect Metamask
                             </button>
                         </div>
@@ -230,6 +251,11 @@ const Interface = () => {
 
             <div className="container" style={{ marginTop: 60 }}>
                 <div className="card mx-auto" style={{ maxWidth: 450 }}>
+                    {section == "Deposit" ? (
+                        <img className="card-img-top" src="/img/deposit.png" />
+                    ) : (
+                        <img className="card-img-top" src="/img/withdraw.png" />
+                    )}
                     <div className="card-body">
                         <div className="btn-group" style={{ marginBottom: 20 }}>
                             {section == "Deposit" ? (
@@ -260,7 +286,7 @@ const Interface = () => {
 
                         {section == "Deposit" && !!account && (
                             <div>
-                                {!!proofElements || true ? (
+                                {!!proofElements ? (
                                     <div>
                                         <div className="alert alert-success">
                                             <span>
@@ -287,27 +313,65 @@ const Interface = () => {
                                         )}
                                     </div>
                                 ) : (
-                                    <button className="btn btn-success" onClick={depositEther}>
-                                        <span className="small">Deposit 1 ETH</span>
-                                    </button>
+                                    <div>
+                                        <p className="text-secondary">
+                                            Note: All deposits and withdrawals are of the same
+                                            denomination of 1 ETH.
+                                        </p>
+                                        <button
+                                            className="btn btn-success"
+                                            onClick={depositEther}
+                                            disabled={depositButtonState == ButtonState.Disabled}
+                                        >
+                                            <span className="small">Deposit 1 ETH</span>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         )}
 
                         {section != "Deposit" && !!account && (
                             <div>
-                                <div>
-                                    <textarea
-                                        className="form-control"
-                                        style={{ resize: "none" }}
-                                        ref={(ta) => {
-                                            updateTextArea(ta)
-                                        }}
-                                    ></textarea>
-                                </div>
-                                <button className="btn btn-primary" onClick={withdraw}>
-                                    <span className="small">withdraw 1 ETH</span>
-                                </button>
+                                {withdrawalSuccessful ? (
+                                    <div>
+                                        <div className="alert alert-success p-3">
+                                            <div>
+                                                <span>
+                                                    <strong>Success!</strong>
+                                                </span>
+                                            </div>
+                                            <div style={{ marginTop: 5 }}>
+                                                <span className="text-secondary">
+                                                    Withdrawal successful. You can check your wallet
+                                                    to verifiy your funds.
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <p className="text-secondary">
+                                            Note: All deposits and withdrawals are of the same
+                                            denomination of 1 ETH.
+                                        </p>
+                                        <div className="form-group">
+                                            <textarea
+                                                className="form-control"
+                                                style={{ resize: "none" }}
+                                                ref={(ta) => {
+                                                    updateTextArea(ta)
+                                                }}
+                                            ></textarea>
+                                        </div>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={withdraw}
+                                            disabled={withdrawButtonState == ButtonState.Disabled}
+                                        >
+                                            <span className="small">withdraw 1 ETH</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {!account && (
@@ -315,6 +379,14 @@ const Interface = () => {
                                 <p>Please connect your wallet to use the sctions.</p>
                             </div>
                         )}
+                    </div>
+                    <div className="card-footer p-4" style={{ lineHeight: "15px" }}>
+                        <span className="small text-secondary" style={{ fontSize: "12px" }}>
+                            <strong>Disclaimer:</strong> Products intended for educational purposes
+                            are <i>not</i> to be used with commercial intent. NFTA, the organization
+                            who sponsored the development of this project, explicitly prohibits and
+                            assumes no responsibilities for losses due to such use.
+                        </span>
                     </div>
                 </div>
             </div>
