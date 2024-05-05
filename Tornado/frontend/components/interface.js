@@ -35,6 +35,12 @@ const Interface = () => {
 
             var accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
             var chainId = window.ethereum.networkVersion
+
+            if (chainId != "11155111") {
+                alert("Please switch to Goerli Testnet")
+                throw "wrong-chain"
+            }
+
             var activeAccount = accounts[0]
             var balance = await window.ethereum.request({
                 method: "eth_getBalance",

@@ -1,4 +1,6 @@
 const hre = require("hardhat");
+const { verify } = require("../utils/verify");
+const { developmentChains } = require("../helper-hardhat-config");
 
 async function main() {
   // deploy hasher
@@ -19,6 +21,17 @@ async function main() {
   const tornado = await Tornado.deploy(hasher.address, verifierAddress);
   await tornado.deployed();
   console.log(tornado.address);
+
+  // Verify the Hasher
+  if (
+    !developmentChains.includes(network.name) &&
+    process.env.ETHERSCAN_API_KEY
+  ) {
+    console.log("Verifying...");
+    await verify(hasher.address, []);
+    await verify(verifier.address, []);
+    await verify(tornado.address, [hasher.address, verifierAddress]);
+  }
 }
 
 main().catch((error) => {
