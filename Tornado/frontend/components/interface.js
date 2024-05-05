@@ -1,10 +1,15 @@
 import { useState } from "react"
-import $u from "../utils/$u"
+import $u from "../utils/$u.js"
 import { ethers } from "ethers"
 
-const wc = require("../circuit/witness_calculator")
+const wc = require("../circuit/witness_calculator.js")
 
-const tornadoAddress = "0x0165878A594ca255338adfa4d48449f69242Eb8F"
+// 0x41Cf036729e5B76377139Af4119Bee6b68A35fd0
+// 0x7663d4389fD53969e96FB457D62e82a63aF83b3d
+// 0x10Ae49fF66A0b963CF0Cb09488DE9906501865Fb
+
+const tornadoAddress = "0x10Ae49fF66A0b963CF0Cb09488DE9906501865Fb"
+
 const tornadoJSON = require("../json/Tornado.json")
 const tornadoABI = tornadoJSON.abi
 const tornadoInterface = new ethers.utils.Interface(tornadoABI)
@@ -18,12 +23,12 @@ const Interface = () => {
     const [textArea, updateTextArea] = useState(null)
 
     // interface states
-    const [section, updateSection] = useState("deposit")
+    const [section, updateSection] = useState("Deposit")
     const [displayCopiedMessage, updateDisplayCopiedMessage] = useState(false)
     const [withdrawalSuccessful, updateWithdrawalSuccessful] = useState(false)
     const [metamaskButtonState, updateMetamaskButtonState] = useState(ButtonState.Normal)
-    const [depositButtonState, updateDepositButtonState] = useState()
-    const [withdrawButtonState, updateWithdrawButtonState] = useState()
+    const [depositButtonState, updateDepositButtonState] = useState(ButtonState.Normal)
+    const [withdrawButtonState, updateWithdrawButtonState] = useState(ButtonState.Normal)
 
     const connectMetamask = async () => {
         try {
@@ -36,7 +41,7 @@ const Interface = () => {
             var accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
             var chainId = window.ethereum.networkVersion
 
-            if (chainId != "11155111") {
+            if (chainId != 11155111) {
                 alert("Please switch to Goerli Testnet")
                 throw "wrong-chain"
             }
@@ -60,10 +65,9 @@ const Interface = () => {
 
         updateMetamaskButtonState(ButtonState.Normal)
     }
-
     const depositEther = async () => {
         updateDepositButtonState(ButtonState.Disabled)
-        // generate secret, nullifier
+
         const secret = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
         const nullifier = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
 
@@ -81,16 +85,14 @@ const Interface = () => {
         const commitment = r[1]
         const nullifierHash = r[2]
 
-        const value = ethers.BigNumber.from("1000000000000000000").toHexString()
+        const value = ethers.BigNumber.from("100000000000000000").toHexString()
 
         const tx = {
             to: tornadoAddress,
             from: account.address,
             value: value,
-            data: tornadoInterface.encodeFunctionData("deposit", [commitment]), // calldata
+            data: tornadoInterface.encodeFunctionData("deposit", [commitment]),
         }
-        console.log("commitment is:", commitment)
-        console.log("nullifierHash is", nullifierHash)
 
         try {
             const txHash = await window.ethereum.request({
@@ -106,22 +108,24 @@ const Interface = () => {
                 txHash: txHash,
             }
 
+            console.log(proofElements)
+
             updateProofElements(btoa(JSON.stringify(proofElements)))
         } catch (e) {
             console.log(e)
         }
+
         updateDepositButtonState(ButtonState.Normal)
     }
-
-    const copyProof = async () => {
+    const copyProof = () => {
         if (!!proofStringEl) {
             flashCopiedMessage()
             navigator.clipboard.writeText(proofStringEl.innerHTML)
         }
     }
-
     const withdraw = async () => {
         updateWithdrawButtonState(ButtonState.Disabled)
+
         if (!textArea || !textArea.value) {
             alert("Please input the proof of deposit string.")
         }
@@ -129,7 +133,6 @@ const Interface = () => {
         try {
             const proofString = textArea.value
             const proofElements = JSON.parse(atob(proofString))
-            console.log(proofElements.txHash)
 
             receipt = await window.ethereum.request({
                 method: "eth_getTransactionReceipt",
@@ -171,9 +174,8 @@ const Interface = () => {
             const tx = {
                 to: tornadoAddress,
                 from: account.address,
-                data: callData, // calldata}
+                data: callData,
             }
-
             const txHash = await window.ethereum.request({
                 method: "eth_sendTransaction",
                 params: [tx],
@@ -190,17 +192,13 @@ const Interface = () => {
                 })
             }
 
-            console.log(receipt)
-
-            console.log(proof)
-            console.log(publicSignals)
-
             if (!!receipt) {
                 updateWithdrawalSuccessful(true)
             }
         } catch (e) {
             console.log(e)
         }
+
         updateWithdrawButtonState(ButtonState.Normal)
     }
 
@@ -218,12 +216,11 @@ const Interface = () => {
                     <div className="container">
                         <div className="navbar-left">
                             <span>
-                                <strong>chainId: </strong>
+                                <strong>ChainId:</strong>
                             </span>
                             <br />
                             <span>{account.chainId}</span>
                         </div>
-
                         <div className="navbar-right">
                             <span>
                                 <strong>{account.address.slice(0, 12) + "..."}</strong>
@@ -231,7 +228,8 @@ const Interface = () => {
                             <br />
                             <span className="small">
                                 {account.balance.slice(0, 10) +
-                                    (account.balance.length > 10 ? "..." : "")}
+                                    (account.balance.length > 10 ? "..." : "")}{" "}
+                                ETH
                             </span>
                         </div>
                     </div>
@@ -309,27 +307,30 @@ const Interface = () => {
                                                 </span>
                                             </div>
                                         </div>
-                                        <button className="btn btn-success" onClick={copyProof}>
-                                            <span className="small">Copy Proof String</span>
-                                        </button>
-                                        {!!displayCopiedMessage && (
-                                            <span className="small" style={{ color: "green" }}>
-                                                <strong>Copied!</strong>
-                                            </span>
-                                        )}
+
+                                        <div>
+                                            <button className="btn btn-success" onClick={copyProof}>
+                                                <span className="small">Copy Proof String</span>
+                                            </button>
+                                            {!!displayCopiedMessage && (
+                                                <span className="small" style={{ color: "green" }}>
+                                                    <strong> Copied!</strong>
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 ) : (
                                     <div>
                                         <p className="text-secondary">
                                             Note: All deposits and withdrawals are of the same
-                                            denomination of 1 ETH.
+                                            denomination of 0.1 ETH.
                                         </p>
                                         <button
                                             className="btn btn-success"
                                             onClick={depositEther}
                                             disabled={depositButtonState == ButtonState.Disabled}
                                         >
-                                            <span className="small">Deposit 1 ETH</span>
+                                            <span className="small">Deposit 0.1 ETH</span>
                                         </button>
                                     </div>
                                 )}
@@ -349,7 +350,7 @@ const Interface = () => {
                                             <div style={{ marginTop: 5 }}>
                                                 <span className="text-secondary">
                                                     Withdrawal successful. You can check your wallet
-                                                    to verifiy your funds.
+                                                    to verify your funds.
                                                 </span>
                                             </div>
                                         </div>
@@ -358,7 +359,7 @@ const Interface = () => {
                                     <div>
                                         <p className="text-secondary">
                                             Note: All deposits and withdrawals are of the same
-                                            denomination of 1 ETH.
+                                            denomination of 0.1 ETH.
                                         </p>
                                         <div className="form-group">
                                             <textarea
@@ -374,18 +375,20 @@ const Interface = () => {
                                             onClick={withdraw}
                                             disabled={withdrawButtonState == ButtonState.Disabled}
                                         >
-                                            <span className="small">withdraw 1 ETH</span>
+                                            <span className="small">Withdraw 0.1 ETH</span>
                                         </button>
                                     </div>
                                 )}
                             </div>
                         )}
+
                         {!account && (
                             <div>
-                                <p>Please connect your wallet to use the sctions.</p>
+                                <p>Please connect your wallet to use the sections.</p>
                             </div>
                         )}
                     </div>
+
                     <div className="card-footer p-4" style={{ lineHeight: "15px" }}>
                         <span className="small text-secondary" style={{ fontSize: "12px" }}>
                             <strong>Disclaimer:</strong> Products intended for educational purposes

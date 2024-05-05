@@ -14,12 +14,12 @@ interface IVerifier {
 }
 
 contract Tornado is ReentrancyGuard {
-    Hasher public hasher;
     address public verifier;
+    Hasher public hasher;
 
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
-    uint256 public constant DENOMINATION = 1 ether;
+    uint256 public denomination = 0.1 ether;
 
     /* When a new deposit commitment is added to the Merkle tree, 
     it is placed at the location indicated by nextLeafIdex, 
@@ -59,7 +59,7 @@ contract Tornado is ReentrancyGuard {
     }
 
     function deposit(uint256 _commitment) external payable nonReentrant {
-        require(msg.value == DENOMINATION, "incorrect amount");
+        require(msg.value == denomination, "incorrect amount");
         require(!commitments[_commitment], "duplicate commitment hash");
         require(nextLeafIdex < 2 ** treeLevel, "tree full");
 
@@ -93,7 +93,7 @@ contract Tornado is ReentrancyGuard {
             ins[0] = left;
             ins[1] = right;
 
-            uint256 h = hasher.MiMC5Sponge{gas: 150000}(ins, _commitment); // Calcuating parent hash value
+            uint256 h = hasher.MiMC5Sponge{gas: 210000}(ins, _commitment); // Calcuating parent hash value
 
             currentHash = h;
             // current leaf node moves up to its parent node
@@ -117,7 +117,7 @@ contract Tornado is ReentrancyGuard {
         uint256 _root = _pubSignals[0];
         uint256 _nullifierHash = _pubSignals[1];
 
-        require(!nullifierHashs[_nullifierHash], "already-spent");
+        require(!nullifierHashs[_nullifierHash], "already spent");
         require(roots[_root], "not root");
 
         uint256 _addr = uint256(uint160(msg.sender));
@@ -134,7 +134,7 @@ contract Tornado is ReentrancyGuard {
         nullifierHashs[_nullifierHash] = true;
         address payable target = payable(msg.sender);
 
-        (bool success, ) = target.call{value: DENOMINATION}("");
+        (bool success, ) = target.call{value: denomination}("");
         require(success, "transaction failed");
 
         emit Withdrawal(msg.sender, _nullifierHash);
