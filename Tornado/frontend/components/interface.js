@@ -4,11 +4,11 @@ import { ethers } from "ethers"
 
 const wc = require("../circuit/witness_calculator.js")
 
-// 0x41Cf036729e5B76377139Af4119Bee6b68A35fd0
-// 0x7663d4389fD53969e96FB457D62e82a63aF83b3d
-// 0x10Ae49fF66A0b963CF0Cb09488DE9906501865Fb
+// 0xD4927De7c89F86c0e47D57fc3808b8eCDa7E1968
+// 0x1978a89322F874Bf37eC97e88F54D6F4B551B09c
+// 0xD4c39444b12F2fb4b409738D2ff1E86c50496231
 
-const tornadoAddress = "0x10Ae49fF66A0b963CF0Cb09488DE9906501865Fb"
+const tornadoAddress = "0xD4c39444b12F2fb4b409738D2ff1E86c50496231"
 
 const tornadoJSON = require("../json/Tornado.json")
 const tornadoABI = tornadoJSON.abi

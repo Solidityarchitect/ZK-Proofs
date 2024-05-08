@@ -93,7 +93,7 @@ contract Tornado is ReentrancyGuard {
             ins[0] = left;
             ins[1] = right;
 
-            uint256 h = hasher.MiMC5Sponge{gas: 210000}(ins, _commitment); // Calcuating parent hash value
+            uint256 h = hasher.MiMC5Sponge{gas: 150000}(ins, _commitment);
 
             currentHash = h;
             // current leaf node moves up to its parent node

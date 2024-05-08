@@ -30,7 +30,7 @@ async function main() {
     console.log("Verifying...");
     await verify(hasher.address, []);
     await verify(verifier.address, []);
-    await verify(tornado.address, [hasher.address, verifierAddress]);
+    await verify(tornado.address, [hasher.address, verifier.address]);
   }
 }
 
