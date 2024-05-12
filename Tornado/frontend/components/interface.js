@@ -4,11 +4,12 @@ import { ethers } from "ethers"
 
 const wc = require("../circuit/witness_calculator.js")
 
-// 0xD4927De7c89F86c0e47D57fc3808b8eCDa7E1968
-// 0x1978a89322F874Bf37eC97e88F54D6F4B551B09c
-// 0xD4c39444b12F2fb4b409738D2ff1E86c50496231
+// Ethereum sepolia
+// 0xE0B57Ec2692b20DbFDDAc4F80C95Fd25FA2dab8a
+// 0xa6463b02dcC56C3DB944775B6C4C1F3E8b6BAdA7
+// 0x3807B08AA236D5De7199Da8F15d14A672dF3989f
 
-const tornadoAddress = "0xD4c39444b12F2fb4b409738D2ff1E86c50496231"
+const tornadoAddress = "0x3807B08AA236D5De7199Da8F15d14A672dF3989f"
 
 const tornadoJSON = require("../json/Tornado.json")
 const tornadoABI = tornadoJSON.abi
@@ -68,6 +69,9 @@ const Interface = () => {
     const depositEther = async () => {
         updateDepositButtonState(ButtonState.Disabled)
 
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+        const signer = provider.getSigner()
+
         const secret = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
         const nullifier = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
 
@@ -87,6 +91,8 @@ const Interface = () => {
 
         const value = ethers.BigNumber.from("100000000000000000").toHexString()
 
+        const contract = new ethers.Contract(tornadoAddress, tornadoABI, signer)
+
         const tx = {
             to: tornadoAddress,
             from: account.address,
@@ -95,10 +101,20 @@ const Interface = () => {
         }
 
         try {
-            const txHash = await window.ethereum.request({
-                method: "eth_sendTransaction",
-                params: [tx],
-            })
+            const estimatedGas = await contract.estimateGas.deposit(commitment, { value: value })
+            console.log("Estimated Gas:", estimatedGas.toString())
+
+            const tx = {
+                to: tornadoAddress,
+                from: account.address,
+                value: value,
+                data: tornadoInterface.encodeFunctionData("deposit", [commitment]),
+                gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
+            }
+
+            const txResponse = await signer.sendTransaction(tx)
+            const receipt = await txResponse.wait()
+            const txHash = receipt.transactionHash
 
             const proofElements = {
                 nullifierHash: `${nullifierHash}`,
